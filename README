@@ -1,0 +1,12 @@
+
+mod_auth_plain - Module for Apache which provides plaintext authentication
+
+Version for Apache 2.0
+
+mod_auth_plain implements authentication routines using plain text
+files for Apache's authentication protocol.
+
+For more informations and binary packages see
+http://mod-auth-plain.alioth.debian.org/
+
+Piotr Roszatycki <dexter@debian.org>

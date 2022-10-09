@@ -1,0 +1,21 @@
+Source: libapache2-mod-auth-plain
+Maintainer: Debian QA Group <packages@qa.debian.org>
+Section: web
+Priority: extra
+Standards-Version: 3.8.1
+Build-Depends:
+ dh-apache2,
+ apache2-dev (>= 2.4),
+ debhelper (>= 8),
+ quilt
+
+Package: libapache2-mod-auth-plain
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends}
+Description: Module for Apache2 which provides plaintext authentication
+ mod_auth_plain implements authentication routines using plain text
+ files for Apache's authentication protocol.
+ .
+ This package provides the module for Apache 2.0 server.

@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+
+EXAMPLES = example.htaccess example.htpasswd
+
+override_dh_auto_build:
+	make mod_auth_plain.la APXS="apxs2" LIBS=""
+
+override_dh_auto_install:
+	# Don't install using the upstream Makefile. Use apache2 and
+	# examples files instead.
+
+override_dh_installexamples:
+	# Examples were renamed, let's follow the scheme:
+	for example in $(EXAMPLES); do cp $$example $${example##example}; done
+	dh_installexamples
+
+override_dh_clean:
+	# Clean built files:
+	rm -rf .libs
+	# Clean renamed examples:
+	for example in $(EXAMPLES); do rm -f $${example##example}; done
+	dh_clean
+
+%:
+	dh $@ --with quilt,apache2

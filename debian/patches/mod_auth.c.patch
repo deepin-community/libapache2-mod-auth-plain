@@ -1,0 +1,177 @@
+diff -u -2 -r1.1.1.1 -r1.4
+--- mod_auth_plain.c	30 Oct 2003 11:29:24 -0000	1.1.1.1
++++ mod_auth_plain.c	21 Dec 2003 21:13:10 -0000	1.4
+@@ -58,5 +58,10 @@
+ 
+ /*
+- * http_auth: authentication
++ * http_auth_plain: plaintext authentication
++ *
++ * Based on http_auth
++ * Adapted by Piotr Roszatycki <dexter@debian.org>
++ * 
++ * Original code:
+  * 
+  * Rob McCool
+@@ -81,4 +86,5 @@
+ #include "http_protocol.h"
+ #include "http_request.h"
++#include "http_main.h"
+ 
+ 
+@@ -87,9 +93,9 @@
+     char *auth_grpfile;
+     int auth_authoritative;
+-} auth_config_rec;
++} auth_plain_config_rec;
+ 
+-static void *create_auth_dir_config(apr_pool_t *p, char *d)
++static void *create_auth_plain_dir_config(apr_pool_t *p, char *d)
+ {
+-    auth_config_rec *conf = apr_palloc(p, sizeof(*conf));
++    auth_plain_config_rec *conf = apr_palloc(p, sizeof(*conf));
+ 
+     conf->auth_pwfile = NULL;     /* just to illustrate the default really */
+@@ -99,25 +105,37 @@
+ }
+ 
+-static const char *set_auth_slot(cmd_parms *cmd, void *offset, const char *f, 
+-                                 const char *t)
++static const char *ap_set_file_slot_curdir(cmd_parms *cmd, char *struct_ptr, const char *arg)
+ {
+-    if (t && strcmp(t, "standard")) {
+-        return apr_pstrcat(cmd->pool, "Invalid auth file type: ", t, NULL);
++    /* Prepend current directory to relative arg. */
++    const char *path;
++    int offset = (int)(long)cmd->info;
++
++    if (ap_os_is_path_absolute(cmd->pool, arg)) {
++        path = arg;
++    } else {
++        path = ap_make_full_path(cmd->pool, cmd->path ? cmd->path : ap_server_root, arg);
+     }
+ 
+-    return ap_set_file_slot(cmd, offset, f);
++    if (!path) {
++        return apr_pstrcat(cmd->pool, "Invalid file path ",
++                           arg, NULL);
++    }
++
++    *(const char **) ((char*)struct_ptr + offset) = path;
++
++    return NULL;
+ }
+ 
+-static const command_rec auth_cmds[] =
++static const command_rec auth_plain_cmds[] =
+ {
+-    AP_INIT_TAKE12("AuthUserFile", set_auth_slot,
+-                   (void *)APR_OFFSETOF(auth_config_rec, auth_pwfile),
++    AP_INIT_TAKE12("AuthPlainUserFile", ap_set_file_slot_curdir,
++                   (void *)APR_OFFSETOF(auth_plain_config_rec, auth_pwfile),
+                    OR_AUTHCFG, "text file containing user IDs and passwords"),
+-    AP_INIT_TAKE12("AuthGroupFile", set_auth_slot,
+-                   (void *)APR_OFFSETOF(auth_config_rec, auth_grpfile),
++    AP_INIT_TAKE12("AuthPlainGroupFile", ap_set_file_slot_curdir,
++                   (void *)APR_OFFSETOF(auth_plain_config_rec, auth_grpfile),
+                    OR_AUTHCFG,
+                    "text file containing group names and member user IDs"),
+-    AP_INIT_FLAG("AuthAuthoritative", ap_set_flag_slot,
+-                 (void *)APR_OFFSETOF(auth_config_rec, auth_authoritative),
++    AP_INIT_FLAG("AuthPlainAuthoritative", ap_set_flag_slot,
++                 (void *)APR_OFFSETOF(auth_plain_config_rec, auth_authoritative),
+                  OR_AUTHCFG,
+                  "Set to 'no' to allow access control to be passed along to "
+@@ -126,7 +144,7 @@
+ };
+ 
+-module AP_MODULE_DECLARE_DATA auth_module;
++module AP_MODULE_DECLARE_DATA auth_plain_module;
+ 
+-static char *get_pw(request_rec *r, char *user, char *auth_pwfile)
++static char *get_plain_pw(request_rec *r, char *user, char *auth_pwfile)
+ {
+     ap_configfile_t *f;
+@@ -156,5 +174,5 @@
+ }
+ 
+-static apr_table_t *groups_for_user(apr_pool_t *p, char *user, char *grpfile)
++static apr_table_t *plain_groups_for_user(apr_pool_t *p, char *user, char *grpfile)
+ {
+     ap_configfile_t *f;
+@@ -209,11 +227,11 @@
+  */
+ 
+-static int authenticate_basic_user(request_rec *r)
++static int auth_plainenticate_basic_user(request_rec *r)
+ {
+-    auth_config_rec *conf = ap_get_module_config(r->per_dir_config,
+-                                                 &auth_module);
++    auth_plain_config_rec *conf = ap_get_module_config(r->per_dir_config,
++                                                 &auth_plain_module);
+     const char *sent_pw;
+     char *real_pw;
+-    apr_status_t invalid_pw;
++    char *invalid_pw;
+     int res;
+ 
+@@ -226,5 +244,5 @@
+     }
+ 
+-    if (!(real_pw = get_pw(r, r->user, conf->auth_pwfile))) {
++    if (!(real_pw = get_plain_pw(r, r->user, conf->auth_pwfile))) {
+         if (!(conf->auth_authoritative)) {
+             return DECLINED;
+@@ -235,9 +253,9 @@
+         return HTTP_UNAUTHORIZED;
+     }
+-    invalid_pw = apr_password_validate(sent_pw, real_pw);
++    invalid_pw = (strcmp(sent_pw, real_pw) == 0) ? NULL : "password mismatch";
+     if (invalid_pw != APR_SUCCESS) {
+         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r,
+                       "user %s: authentication failure for \"%s\": "
+-                      "Password Mismatch",
++                      "Plain Password Mismatch",
+                       r->user, r->uri);
+         ap_note_basic_auth_failure(r);
+@@ -249,8 +267,8 @@
+ /* Checking ID */
+ 
+-static int check_user_access(request_rec *r)
++static int plain_check_user_access(request_rec *r)
+ {
+-    auth_config_rec *conf = ap_get_module_config(r->per_dir_config,
+-                                                 &auth_module);
++    auth_plain_config_rec *conf = ap_get_module_config(r->per_dir_config,
++                                                 &auth_plain_module);
+     char *user = r->user;
+     int m = r->method_number;
+@@ -271,5 +289,5 @@
+ 
+     if (conf->auth_grpfile) {
+-        grpstatus = groups_for_user(r->pool, user, conf->auth_grpfile);
++        grpstatus = plain_groups_for_user(r->pool, user, conf->auth_grpfile);
+     }
+     else {
+@@ -341,16 +359,16 @@
+ static void register_hooks(apr_pool_t *p)
+ {
+-    ap_hook_check_user_id(authenticate_basic_user,NULL,NULL,APR_HOOK_MIDDLE);
+-    ap_hook_auth_checker(check_user_access,NULL,NULL,APR_HOOK_MIDDLE);
++    ap_hook_check_user_id(auth_plainenticate_basic_user,NULL,NULL,APR_HOOK_MIDDLE);
++    ap_hook_auth_checker(plain_check_user_access,NULL,NULL,APR_HOOK_MIDDLE);
+ }
+ 
+-module AP_MODULE_DECLARE_DATA auth_module =
++module AP_MODULE_DECLARE_DATA auth_plain_module =
+ {
+     STANDARD20_MODULE_STUFF,
+-    create_auth_dir_config,     /* dir config creater */
++    create_auth_plain_dir_config,     /* dir config creater */
+     NULL,                       /* dir merger --- default is to override */
+     NULL,                       /* server config */
+     NULL,                       /* merge server config */
+-    auth_cmds,                  /* command apr_table_t */
++    auth_plain_cmds,                  /* command apr_table_t */
+     register_hooks              /* register hooks */
+ };

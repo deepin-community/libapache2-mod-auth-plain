@@ -1,0 +1,34 @@
+libapache2-mod-auth-plain for Debian
+------------------------------------
+
+
+USAGE
+
+  An example .htaccess file:
+
+  -----BEGIN-----
+  Deny from all
+  AuthType basic
+  AuthName "Plain htpasswd"
+  AuthBasicProvider plain
+  AuthPlainUserFile .htpasswd
+  Require valid-user
+  Satisfy any
+  -----END-----
+
+  Note that AuthPlainUserFile can be relative to the directory which contains
+  .htaccess file.
+
+SECURITY
+
+  The .htpasswd file shouldn't be readable by WWW. Be sure you use something like:
+  
+  <Files ~ "^\.ht">
+      Order allow,deny
+      Deny from all
+  </Files>
+
+  The passwords are sent by net as clear text. You should use SSL to protect
+  them.
+
+ -- Piotr Roszatycki <dexter@debian.org>  Thu, 30 Oct 2003 14:49:47 +0100

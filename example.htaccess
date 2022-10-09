@@ -1,0 +1,6 @@
+Deny from all
+AuthType basic
+AuthName "Plain htpasswd"
+AuthPlainUserFile /usr/share/doc/libapache2-mod-auth-plain/examples/.htpasswd
+Require valid-user
+Satisfy any

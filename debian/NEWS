@@ -1,0 +1,9 @@
+libapache2-mod-auth-plain (2.0.52) unstable; urgency=low
+
+  * mod_auth_plain is now structured as an authentication and authorization
+    provider; this is for improved compatibility with Apache 2.4, and to
+    allow combining this with other providers and controlling their
+    ordering.  You will need to add "AuthBasicProvider plain" to your
+    configuration files alongside any AuthPlain* directives.
+
+ -- Colin Watson <cjwatson@debian.org>  Tue, 09 Jul 2013 12:33:57 +0100
